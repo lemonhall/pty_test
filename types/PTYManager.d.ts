@@ -61,6 +61,10 @@ export declare class PTYManager {
     getStatus(sessionId: string): SessionStatus;
     write(sessionId: string, text: string): WriteResult;
     kill(sessionId: string, signal?: 'SIGTERM' | 'SIGKILL' | 'SIGINT'): KillResult;
+    listSessions(): SessionStatus[];
+    cleanup(sessionId?: string): string[];
+    destroy(): void;
+    resize(sessionId: string, cols: number, rows: number): void;
     on(event: 'output', listener: (sessionId: string, data: string) => void): this;
     on(event: 'exit', listener: (sessionId: string, exitCode: number) => void): this;
 }

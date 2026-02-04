@@ -26,6 +26,10 @@
 4) `getOutput/getStatus` 对不存在 session 抛出 `SessionNotFoundError`，且 `error.code === 'SESSION_NOT_FOUND'`。  
 5) `npm test` 全绿。
 
+补充说明：
+- 单元测试默认使用可注入的 `ptyProvider`（模拟 PTY）来避免环境对 PTY 的限制导致用例不稳定。
+- 真实 PTY 的集成验证用例默认跳过，可通过 `RUN_PTY_INTEGRATION=1 npm test` 启用。
+
 ## Files（预期改动）
 
 - `package.json`
@@ -46,4 +50,3 @@
 ## Risks
 
 - `node-pty` 依赖在本机/CI 环境安装失败：先建立明确的安装失败报错提示与 README 指引。
-

@@ -139,10 +139,12 @@ type SessionRecord = {
   cwd: string;
   output: OutputBuffer;
   killed: boolean;
+  cleanupTimer: NodeJS.Timeout | null;
 };
 
 export class PTYManager {
   readonly #maxOutputSize: number;
+  readonly #sessionTTL: number;
   readonly #defaultCols: number;
   readonly #defaultRows: number;
   readonly #emitter = new EventEmitter();
@@ -151,6 +153,7 @@ export class PTYManager {
 
   constructor(options?: PTYManagerOptions) {
     this.#maxOutputSize = options?.maxOutputSize ?? 1024 * 1024;
+    this.#sessionTTL = options?.sessionTTL ?? 300_000;
     this.#defaultCols = options?.defaultCols ?? 80;
     this.#defaultRows = options?.defaultRows ?? 24;
     this.#ptyProvider = options?.ptyProvider ?? defaultPtyProvider;
@@ -188,7 +191,8 @@ export class PTYManager {
       args,
       cwd,
       output: new OutputBuffer(this.#maxOutputSize),
-      killed: false
+      killed: false,
+      cleanupTimer: null
     };
 
     ptyProcess.onData((data) => {
@@ -201,6 +205,13 @@ export class PTYManager {
       session.endTime = new Date();
       session.status = session.killed ? 'killed' : 'exited';
       this.#emitter.emit('exit', sessionId, session.exitCode ?? -1);
+
+      if (this.#sessionTTL >= 0) {
+        session.cleanupTimer = setTimeout(() => {
+          this.#sessions.delete(sessionId);
+        }, this.#sessionTTL);
+        session.cleanupTimer.unref?.();
+      }
     });
 
     this.#sessions.set(sessionId, session);
@@ -254,6 +265,68 @@ export class PTYManager {
     } catch {
       return { success: false, error: 'KILL_FAILED' };
     }
+  }
+
+  listSessions(): SessionStatus[] {
+    return [...this.#sessions.values()].map((s) => ({
+      sessionId: s.sessionId,
+      status: s.status,
+      exitCode: s.exitCode,
+      pid: s.ptyProcess.pid,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      command: s.command,
+      args: s.args,
+      cwd: s.cwd,
+      outputLength: s.output.bytes
+    }));
+  }
+
+  cleanup(sessionId?: string): string[] {
+    if (sessionId) {
+      const session = this.#sessions.get(sessionId);
+      if (!session) throw new SessionNotFoundError(sessionId);
+      if (session.status === 'running') return [];
+      if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+      this.#sessions.delete(sessionId);
+      return [sessionId];
+    }
+
+    const removed: string[] = [];
+    for (const [id, session] of this.#sessions.entries()) {
+      if (session.status === 'running') continue;
+      if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+      this.#sessions.delete(id);
+      removed.push(id);
+    }
+    return removed;
+  }
+
+  destroy(): void {
+    for (const session of this.#sessions.values()) {
+      if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+      if (session.status !== 'running') continue;
+      if (!session.ptyProcess.kill) continue;
+
+      session.killed = true;
+      try {
+        session.ptyProcess.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
+    }
+    this.#sessions.clear();
+    this.#emitter.removeAllListeners();
+  }
+
+  resize(sessionId: string, cols: number, rows: number): void {
+    const session = this.#sessions.get(sessionId);
+    if (!session) throw new SessionNotFoundError(sessionId);
+    if (!session.ptyProcess.resize) return;
+
+    const nextCols = Math.max(1, Math.min(500, cols));
+    const nextRows = Math.max(1, Math.min(200, rows));
+    session.ptyProcess.resize(nextCols, nextRows);
   }
 
   on(event: 'output', listener: (sessionId: string, data: string) => void): this;

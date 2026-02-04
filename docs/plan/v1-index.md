@@ -13,10 +13,10 @@
 
 | 里程碑 | 范围 | DoD（Definition of Done） | 验证命令 | 状态 |
 |---|---|---|---|---|
-| M1 | 核心会话与输出 | `spawn/getOutput/getStatus` 可用；输出缓冲上限生效 | `npm test` | todo |
-| M2 | 输入与终止 | `write/kill` 可用；退出路径稳定；错误码明确 | `npm test` | todo |
-| M3 | 会话管理 | `listSessions/cleanup/sessionTTL/destroy` 可用 | `npm test` | todo |
-| M4 | 事件与尺寸 | `on('output'|'exit')/resize` 可用（含最小测试） | `npm test` | todo |
+| M1 | 核心会话与输出 | `spawn/getOutput/getStatus` 可用；输出缓冲上限生效 | `npm test` | done |
+| M2 | 输入与终止 | `write/kill` 可用；退出路径稳定；错误码明确 | `npm test` | done |
+| M3 | 会话管理 | `listSessions/cleanup/sessionTTL/destroy` 可用 | `npm test` | done |
+| M4 | 事件与尺寸 | `on('output'|'exit')/resize` 可用（含最小测试） | `npm test` | done |
 
 ## 3. 计划文档索引
 
@@ -47,9 +47,9 @@
 
 - 本仓库自动化测试默认在 Linux/WSL2 运行。
 - Windows 10/11 必验：至少手动执行一轮 `npm test`，并额外验证 `spawn('cmd.exe', { args: ['/c', 'dir'] })`。
+- 集成测试（真实 PTY）：默认跳过，可通过 `RUN_PTY_INTEGRATION=1 npm test` 启用。
 
 ## 6. 差异与已知风险（v1）
 
 - `node-pty` 在 Windows 的安装/编译可能失败：需要在 README 中给出常见排障（Python/MSVC/预编译）路径。
 - `SIGINT/SIGTERM` 在不同平台行为存在差异：测试应以“最终结束 + 状态一致性”作为判定。
-
