@@ -29,7 +29,10 @@ npm run example:codex-game
 ```
 
 这个例子会在临时目录创建一个新的 git repo，然后用 `PTYManager` 启动 `codex exec --full-auto` 生成一个 `index.html` 小游戏，并用 `log(offset/limit)` 持续增量打印输出。
-如果 Codex 的 JSONL 事件流里包含 session id，该例子会额外打印 `codexSessionId=...`（用于 `codex resume`）。
+
+输出里有两种 ID：
+- `ptySessionId=...`：PTY/进程会话 ID（用于 `log/poll/write/kill` 这种“过程控制”）
+- `codexThreadId=...`：Codex 自己的对话线程 ID（用于 `codex exec resume <id>`，只有你想继续同一上下文时才需要）
 
 ## 2) 启动 vim，然后按键退出（ESC + :q! + Enter）
 

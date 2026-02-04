@@ -8,6 +8,8 @@ function tryExtractSessionId(obj) {
   if (!obj || typeof obj !== 'object') return null;
   const anyObj = /** @type {any} */ (obj);
   const candidates = [
+    anyObj.thread_id,
+    anyObj.threadId,
     anyObj.session_id,
     anyObj.sessionId,
     anyObj.session?.id,
@@ -66,12 +68,12 @@ async function main() {
   ].join('\n');
 
   const sessionId = manager.spawn('bash', { args: ['-lc', bashCommand], cols: 120, rows: 40 });
-  console.log('spawned codex sessionId=', sessionId);
+  console.log('spawned ptySessionId=', sessionId);
 
   let offset = 0;
   let jsonRemainder = '';
   let textRemainder = '';
-  let codexSessionId = null;
+  let codexThreadId = null;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const status = manager.getStatus(sessionId);
@@ -91,9 +93,9 @@ async function main() {
         try {
           const obj = JSON.parse(trimmed);
           const found = tryExtractSessionId(obj);
-          if (found && !codexSessionId) {
-            codexSessionId = found;
-            console.log('\n[codex] sessionId=', codexSessionId);
+          if (found && !codexThreadId) {
+            codexThreadId = found;
+            console.log('\n[codex] threadId=', codexThreadId);
           }
         } catch {
           // ignore
@@ -106,9 +108,9 @@ async function main() {
       textRemainder = textLines.pop() ?? '';
       for (const line of textLines) {
         const found = tryExtractSessionIdFromTextLine(line);
-        if (found && !codexSessionId) {
-          codexSessionId = found;
-          console.log('\n[codex] sessionId=', codexSessionId);
+        if (found && !codexThreadId) {
+          codexThreadId = found;
+          console.log('\n[codex] threadId=', codexThreadId);
         }
       }
     }
@@ -125,16 +127,16 @@ async function main() {
   const finalStatus = manager.getStatus(sessionId);
   const allOutput = manager.getOutput(sessionId);
   const scratchMatch = allOutput.match(/SCRATCH_DIR=(.+)\r?\n/);
-  if (!codexSessionId) {
+  if (!codexThreadId) {
     const m = allOutput.match(/session id:\s*([0-9a-f-]{16,})/i);
-    if (m?.[1]) codexSessionId = m[1];
+    if (m?.[1]) codexThreadId = m[1];
   }
 
   console.log('\n--- summary ---');
   console.log('status=', finalStatus.status, 'exitCode=', finalStatus.exitCode);
   console.log('pid=', finalStatus.pid, 'capturedBytes=', finalStatus.outputLength);
   if (scratchMatch) console.log('scratchDir=', scratchMatch[1]);
-  if (codexSessionId) console.log('codexSessionId=', codexSessionId);
+  if (codexThreadId) console.log('codexThreadId=', codexThreadId);
   console.log('tip: open the generated index.html in your browser (inside scratchDir).');
 }
 
