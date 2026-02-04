@@ -33,6 +33,14 @@ export interface KillResult {
     success: boolean;
     error?: string;
 }
+export interface ReadOutputResult {
+    offset: number;
+    nextOffset: number;
+    data: string;
+    truncated: boolean;
+    startOffset: number;
+    endOffset: number;
+}
 export type PTYExitEvent = {
     exitCode: number;
     signal?: number;
@@ -58,6 +66,19 @@ export declare class PTYManager {
     constructor(options?: PTYManagerOptions);
     spawn(command: string, options?: SpawnOptions): string;
     getOutput(sessionId: string): string;
+    /**
+     * Incremental output reader (aligns with "log offset/limit" semantics).
+     *
+     * - `offset` is an absolute byte offset into the session's output stream (starts at 0).
+     * - `limit` caps how many bytes are returned (default 64KB).
+     *
+     * If the internal ring buffer has already dropped older bytes, `truncated` will be true and
+     * `offset` will be advanced to the earliest available byte.
+     */
+    readOutput(sessionId: string, options?: {
+        offset?: number;
+        limit?: number;
+    }): ReadOutputResult;
     getStatus(sessionId: string): SessionStatus;
     write(sessionId: string, text: string): WriteResult;
     kill(sessionId: string, signal?: 'SIGTERM' | 'SIGKILL' | 'SIGINT'): KillResult;

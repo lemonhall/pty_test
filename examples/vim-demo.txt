@@ -1,9 +1,0 @@
-This is a tiny file used by examples/vim-quit.js.
-
-The script starts vim, then sends:
-  Esc
-  :q!
-  Enter
-
-If you can see this file content in captured output, vim opened the intended file.
-

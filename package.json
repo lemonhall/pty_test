@@ -13,7 +13,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test",
     "example:stream": "npm run build && node examples/streaming-output.js",
-    "example:vim": "npm run build && node examples/vim-quit.js"
+    "example:vim": "npm run build && node examples/vim-quit.js",
+    "example:log": "npm run build && node examples/log-offset.js"
   },
   "dependencies": {
     "node-pty": "^1.0.0"

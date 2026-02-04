@@ -46,6 +46,15 @@ export interface KillResult {
   error?: string;
 }
 
+export interface ReadOutputResult {
+  offset: number;
+  nextOffset: number;
+  data: string;
+  truncated: boolean;
+  startOffset: number;
+  endOffset: number;
+}
+
 export type PTYExitEvent = { exitCode: number; signal?: number };
 
 export interface PTYLike {
@@ -67,21 +76,47 @@ const defaultPtyProvider: PTYProvider = {
   }
 };
 
-function byteLengthUtf8(data: string): number {
-  return Buffer.byteLength(data, 'utf8');
+function isUtf8ContinuationByte(b: number): boolean {
+  return (b & 0xc0) === 0x80;
 }
 
-function trimStartByBytesUtf8(data: string, bytesToTrim: number): string {
-  const buf = Buffer.from(data, 'utf8');
-  if (bytesToTrim >= buf.length) return '';
-  return buf.subarray(bytesToTrim).toString('utf8');
+function utf8ExpectedLength(firstByte: number): number {
+  if ((firstByte & 0x80) === 0) return 1;
+  if ((firstByte & 0xe0) === 0xc0) return 2;
+  if ((firstByte & 0xf0) === 0xe0) return 3;
+  if ((firstByte & 0xf8) === 0xf0) return 4;
+  return 1;
+}
+
+function sanitizeUtf8Slice(buf: Buffer): { buf: Buffer; bytesConsumed: number } {
+  if (buf.length === 0) return { buf, bytesConsumed: 0 };
+
+  let start = 0;
+  while (start < buf.length && isUtf8ContinuationByte(buf[start]!)) start += 1;
+
+  let end = buf.length;
+  if (end - start <= 0) return { buf: Buffer.alloc(0), bytesConsumed: 0 };
+
+  // Ensure the end doesn't cut a multi-byte sequence (best-effort).
+  let scan = end - 1;
+  while (scan >= start && isUtf8ContinuationByte(buf[scan]!)) scan -= 1;
+
+  if (scan >= start) {
+    const expected = utf8ExpectedLength(buf[scan]!);
+    const actual = end - scan;
+    if (expected > actual) end = scan;
+  }
+
+  const safe = buf.subarray(start, end);
+  return { buf: safe, bytesConsumed: safe.length };
 }
 
 class OutputBuffer {
   #maxBytes: number;
-  #chunks: string[] = [];
-  #bytes = 0;
-  #cache: string | null = '';
+  #chunks: Buffer[] = [];
+  #bytes = 0; // bytes currently buffered
+  #startOffset = 0; // absolute byte offset of the first buffered byte
+  #endOffset = 0; // absolute byte offset just after the last written byte
 
   constructor(maxBytes: number) {
     this.#maxBytes = maxBytes;
@@ -89,9 +124,10 @@ class OutputBuffer {
 
   append(data: string) {
     if (!data) return;
-    this.#chunks.push(data);
-    this.#bytes += byteLengthUtf8(data);
-    this.#cache = null;
+    const buf = Buffer.from(data, 'utf8');
+    this.#chunks.push(buf);
+    this.#bytes += buf.length;
+    this.#endOffset += buf.length;
     this.#trimToMax();
   }
 
@@ -99,9 +135,78 @@ class OutputBuffer {
     return this.#bytes;
   }
 
+  get startOffset() {
+    return this.#startOffset;
+  }
+
+  get endOffset() {
+    return this.#endOffset;
+  }
+
   toString(): string {
-    if (this.#cache === null) this.#cache = this.#chunks.join('');
-    return this.#cache;
+    return Buffer.concat(this.#chunks, this.#bytes).toString('utf8');
+  }
+
+  read(
+    offset: number,
+    limitBytes: number
+  ): {
+    offset: number;
+    nextOffset: number;
+    data: string;
+    truncated: boolean;
+  } {
+    const safeLimit = Math.max(0, limitBytes);
+    const requestedOffset = Math.max(0, offset);
+
+    const start = this.#startOffset;
+    const end = this.#endOffset;
+
+    const truncated = requestedOffset < start;
+    const effectiveOffset = truncated ? start : requestedOffset;
+
+    if (safeLimit === 0 || effectiveOffset >= end) {
+      return { offset: effectiveOffset, nextOffset: effectiveOffset, data: '', truncated };
+    }
+
+    const relativeStart = effectiveOffset - start;
+    const relativeEnd = Math.min(this.#bytes, relativeStart + safeLimit);
+    const raw = this.#slice(relativeStart, relativeEnd);
+    const { buf: safeBuf, bytesConsumed } = sanitizeUtf8Slice(raw);
+
+    return {
+      offset: effectiveOffset,
+      nextOffset: effectiveOffset + bytesConsumed,
+      data: safeBuf.toString('utf8'),
+      truncated
+    };
+  }
+
+  #slice(relativeStart: number, relativeEnd: number): Buffer {
+    if (relativeStart <= 0 && relativeEnd >= this.#bytes) {
+      return Buffer.concat(this.#chunks, this.#bytes);
+    }
+
+    const out = Buffer.allocUnsafe(Math.max(0, relativeEnd - relativeStart));
+    let outPos = 0;
+    let cursor = 0;
+
+    for (const chunk of this.#chunks) {
+      const chunkStart = cursor;
+      const chunkEnd = cursor + chunk.length;
+      cursor = chunkEnd;
+
+      if (chunkEnd <= relativeStart) continue;
+      if (chunkStart >= relativeEnd) break;
+
+      const startInChunk = Math.max(0, relativeStart - chunkStart);
+      const endInChunk = Math.min(chunk.length, relativeEnd - chunkStart);
+      const len = endInChunk - startInChunk;
+      chunk.copy(out, outPos, startInChunk, endInChunk);
+      outPos += len;
+    }
+
+    return outPos === out.length ? out : out.subarray(0, outPos);
   }
 
   #trimToMax() {
@@ -109,19 +214,19 @@ class OutputBuffer {
     let overflow = this.#bytes - this.#maxBytes;
 
     while (overflow > 0 && this.#chunks.length > 0) {
-      const first = this.#chunks[0] ?? '';
-      const firstBytes = byteLengthUtf8(first);
+      const first = this.#chunks[0] ?? Buffer.alloc(0);
+      const firstBytes = first.length;
       if (firstBytes <= overflow) {
         this.#chunks.shift();
         this.#bytes -= firstBytes;
+        this.#startOffset += firstBytes;
         overflow -= firstBytes;
         continue;
       }
 
-      const trimmed = trimStartByBytesUtf8(first, overflow);
-      const trimmedBytes = byteLengthUtf8(trimmed);
-      this.#chunks[0] = trimmed;
-      this.#bytes -= firstBytes - trimmedBytes;
+      this.#chunks[0] = first.subarray(overflow);
+      this.#bytes -= overflow;
+      this.#startOffset += overflow;
       overflow = 0;
     }
   }
@@ -222,6 +327,29 @@ export class PTYManager {
     const session = this.#sessions.get(sessionId);
     if (!session) throw new SessionNotFoundError(sessionId);
     return session.output.toString();
+  }
+
+  /**
+   * Incremental output reader (aligns with "log offset/limit" semantics).
+   *
+   * - `offset` is an absolute byte offset into the session's output stream (starts at 0).
+   * - `limit` caps how many bytes are returned (default 64KB).
+   *
+   * If the internal ring buffer has already dropped older bytes, `truncated` will be true and
+   * `offset` will be advanced to the earliest available byte.
+   */
+  readOutput(sessionId: string, options?: { offset?: number; limit?: number }): ReadOutputResult {
+    const session = this.#sessions.get(sessionId);
+    if (!session) throw new SessionNotFoundError(sessionId);
+
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? 64 * 1024;
+    const read = session.output.read(offset, limit);
+    return {
+      ...read,
+      startOffset: session.output.startOffset,
+      endOffset: session.output.endOffset
+    };
   }
 
   getStatus(sessionId: string): SessionStatus {

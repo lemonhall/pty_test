@@ -1,6 +1,8 @@
 import { PTYManager, SpawnError } from '../dist/index.js';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeFile, unlink } from 'node:fs/promises';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,7 +32,22 @@ try {
 
   const examplesDir = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(examplesDir, '..');
-  const targetFile = 'examples/vim-demo.txt';
+  const demoFilePath = path.join(os.tmpdir(), `pty-vim-demo-${process.pid}.txt`);
+  await writeFile(
+    demoFilePath,
+    [
+      'This is a tiny file used by examples/vim-quit.js.',
+      '',
+      'The script starts vim, then sends:',
+      '  Esc',
+      '  :q!',
+      '  Enter',
+      '',
+      'If you can see this content in captured output, vim opened the intended file.',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
 
   const sessionId = manager.spawn('vim', {
     args: [
@@ -40,8 +57,8 @@ try {
       '-i',
       'NONE',
       '-n',
-      // 用一个固定的小文件，避免 cwd/文件名歧义
-      targetFile
+      // 打开一个临时小文件，避免 cwd/文件名歧义，也避免污染 git working tree
+      demoFilePath
     ],
     cwd: repoRoot,
     cols: 120,
@@ -50,7 +67,7 @@ try {
 
   console.log('spawned vim sessionId=', sessionId);
   console.log('vim cwd=', repoRoot);
-  console.log('vim file=', targetFile);
+  console.log('vim file=', demoFilePath);
 
   // vim 是全屏程序：这里不实时打印 output，避免刷屏；只统计一下数据量。
   let seenBytes = 0;
@@ -77,6 +94,12 @@ try {
   console.log('capturedBytes(buffer)=', status.outputLength);
   console.log('tail(raw ansi)=');
   console.log(output.slice(-400));
+
+  try {
+    await unlink(demoFilePath);
+  } catch {
+    // ignore
+  }
 } catch (err) {
   if (err instanceof SpawnError) {
     console.error('PTY spawn failed:', err.code, err.message);
