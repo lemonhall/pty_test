@@ -4,6 +4,22 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function tryExtractSessionId(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const anyObj = /** @type {any} */ (obj);
+  const candidates = [
+    anyObj.session_id,
+    anyObj.sessionId,
+    anyObj.session?.id,
+    anyObj.session?.session_id,
+    anyObj.session?.sessionId
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.length > 0) return c;
+  }
+  return null;
+}
+
 function buildPrompt() {
   // Keep it short-ish; Codex will do the rest.
   return [
@@ -34,7 +50,8 @@ async function main() {
     'cd "$SCRATCH"',
     'git init -q',
     // Use --full-auto to avoid interactive approvals.
-    `codex exec --full-auto ${JSON.stringify(prompt)}`,
+    // Use --json so we can parse Codex's own session id if available.
+    `codex exec --full-auto --json ${JSON.stringify(prompt)}`,
     'echo "CODEX_DONE=1"'
   ].join('\n');
 
@@ -42,6 +59,8 @@ async function main() {
   console.log('spawned codex sessionId=', sessionId);
 
   let offset = 0;
+  let jsonRemainder = '';
+  let codexSessionId = null;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const status = manager.getStatus(sessionId);
@@ -49,7 +68,27 @@ async function main() {
     if (chunk.truncated) {
       console.log('[log] truncated: jumped offset from', offset, 'to', chunk.offset);
     }
-    if (chunk.output) process.stdout.write(chunk.output);
+    if (chunk.output) {
+      process.stdout.write(chunk.output);
+
+      jsonRemainder += chunk.output;
+      const lines = jsonRemainder.split(/\r?\n/);
+      jsonRemainder = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) continue;
+        try {
+          const obj = JSON.parse(trimmed);
+          const found = tryExtractSessionId(obj);
+          if (found && !codexSessionId) {
+            codexSessionId = found;
+            console.log('\n[codex] sessionId=', codexSessionId);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
     offset = chunk.nextOffset;
 
     if (status.status !== 'running') break;
@@ -68,6 +107,7 @@ async function main() {
   console.log('status=', finalStatus.status, 'exitCode=', finalStatus.exitCode);
   console.log('pid=', finalStatus.pid, 'capturedBytes=', finalStatus.outputLength);
   if (scratchMatch) console.log('scratchDir=', scratchMatch[1]);
+  if (codexSessionId) console.log('codexSessionId=', codexSessionId);
   console.log('tip: open the generated index.html in your browser (inside scratchDir).');
 }
 
@@ -83,4 +123,3 @@ try {
     process.exitCode = 1;
   }
 }
-
