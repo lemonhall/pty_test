@@ -20,6 +20,13 @@ function tryExtractSessionId(obj) {
   return null;
 }
 
+function tryExtractSessionIdFromTextLine(line) {
+  // Codex CLI human-readable banner often includes:
+  //   session id: <uuid>
+  const m = line.match(/session id:\s*([0-9a-f-]{16,})/i);
+  return m?.[1] ?? null;
+}
+
 function buildPrompt() {
   // Keep it short-ish; Codex will do the rest.
   return [
@@ -50,8 +57,11 @@ async function main() {
     'cd "$SCRATCH"',
     'git init -q',
     // Use --full-auto to avoid interactive approvals.
+    // Use stdin heredoc (single-quoted) to avoid shell command-substitution from backticks in the prompt.
     // Use --json so we can parse Codex's own session id if available.
-    `codex exec --full-auto --json ${JSON.stringify(prompt)}`,
+    "codex exec --full-auto --json - <<'CODEX_PROMPT'",
+    prompt,
+    'CODEX_PROMPT',
     'echo "CODEX_DONE=1"'
   ].join('\n');
 
@@ -60,6 +70,7 @@ async function main() {
 
   let offset = 0;
   let jsonRemainder = '';
+  let textRemainder = '';
   let codexSessionId = null;
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -88,6 +99,18 @@ async function main() {
           // ignore
         }
       }
+
+      // Also parse human-readable banner lines (Codex may print those even with --json).
+      textRemainder += chunk.output;
+      const textLines = textRemainder.split(/\r?\n/);
+      textRemainder = textLines.pop() ?? '';
+      for (const line of textLines) {
+        const found = tryExtractSessionIdFromTextLine(line);
+        if (found && !codexSessionId) {
+          codexSessionId = found;
+          console.log('\n[codex] sessionId=', codexSessionId);
+        }
+      }
     }
     offset = chunk.nextOffset;
 
@@ -102,6 +125,10 @@ async function main() {
   const finalStatus = manager.getStatus(sessionId);
   const allOutput = manager.getOutput(sessionId);
   const scratchMatch = allOutput.match(/SCRATCH_DIR=(.+)\r?\n/);
+  if (!codexSessionId) {
+    const m = allOutput.match(/session id:\s*([0-9a-f-]{16,})/i);
+    if (m?.[1]) codexSessionId = m[1];
+  }
 
   console.log('\n--- summary ---');
   console.log('status=', finalStatus.status, 'exitCode=', finalStatus.exitCode);
