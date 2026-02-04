@@ -46,3 +46,7 @@ npm test
 RUN_PTY_INTEGRATION=1 npm test
 ```
 
+## Examples
+
+- `npm run example:stream`：启动一个 60 秒断断续续输出的进程并捕获输出
+- `npm run example:vim`：启动 `vim`，发送 `Esc` + `:q!` + `Enter` 退出，并查看捕获的原始输出
