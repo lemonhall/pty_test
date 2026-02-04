@@ -19,6 +19,7 @@
 
 - 支持并发管理多个 PTY session（以 `sessionId` 唯一标识）
 - 通过事件与查询 API 提供输出与状态能力
+- （可选）提供一个 `ProcessManager` 门面，语义尽可能对齐 “process action:*” 风格（list/poll/log/write/send-keys/submit/paste/kill/clear/remove）
 
 ## 3. 非目标（Non-goals）
 
@@ -110,3 +111,7 @@ API 以 `PTYManager` 类为核心，详见 `docs/plan/v1-index.md` 中的版本�
 输出读取建议：
 - `getOutput(sessionId)`：一次性拿到当前缓冲区内的全部输出（适合 debug）
 - `readOutput/session log`：按 `offset/limit` 增量读取（更适合作为工具系统的 `process log` 接口）；也可用 `log()` 便捷封装返回 `output` 字段
+
+补充说明：
+- 本库的 `sessionId` 默认指 **PTY 会话 ID**（即“过程控制句柄”：log/poll/write/kill）。
+- 外部工具（例如 Codex）可能还会有自己的对话线程 ID（用于 resume），这是另一层标识，不属于本库 `sessionId` 的定义范围。

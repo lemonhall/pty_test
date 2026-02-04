@@ -15,7 +15,8 @@
     "example:stream": "npm run build && node examples/streaming-output.js",
     "example:vim": "npm run build && node examples/vim-quit.js",
     "example:log": "npm run build && node examples/log-offset.js",
-    "example:codex-game": "npm run build && node examples/codex-html-game.js"
+    "example:codex-game": "npm run build && node examples/codex-html-game.js",
+    "example:process-like": "npm run build && node examples/process-like-codex.js"
   },
   "dependencies": {
     "node-pty": "^1.0.0"

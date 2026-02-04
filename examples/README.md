@@ -34,6 +34,14 @@ npm run example:codex-game
 - `ptySessionId=...`：PTY/进程会话 ID（用于 `log/poll/write/kill` 这种“过程控制”）
 - `codexThreadId=...`：Codex 自己的对话线程 ID（用于 `codex exec resume <id>`，只有你想继续同一上下文时才需要）
 
+## 4) “process action:*” 风格（更贴近 SKILL）
+
+```bash
+npm run example:process-like
+```
+
+这个例子用 `ProcessManager.process({ action: ... })` 来做 `list/poll/log/write/...`，语义尽可能贴近你贴的 `process` tool 实现。
+
 ## 2) 启动 vim，然后按键退出（ESC + :q! + Enter）
 
 ```bash

@@ -56,3 +56,6 @@ RUN_PTY_INTEGRATION=1 npm test
 `example:codex-game` 会打印两种 ID：
 - `ptySessionId`：本库 `PTYManager` 的 session id（用于过程控制：log/poll/write/kill）
 - `codexThreadId`：Codex 的对话线程 id（用于 `codex exec resume`，仅在你要继续同一对话上下文时使用）
+
+如果你更想要类似 SKILL 里 `process action:*` 的风格，可以用 `ProcessManager`（提供 `list/poll/log/write/send-keys/submit/paste/kill/clear/remove`）：
+- `npm run example:process-like`
