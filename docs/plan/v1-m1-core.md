@@ -6,7 +6,7 @@
 
 ## PRD Trace
 
-- REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-007
+- REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-005A, REQ-007
 
 ## Scope
 
@@ -24,6 +24,7 @@
 2) 启动持续输出进程时，`getOutput(sessionId)` 在运行中能读取到包含最新输出的字符串。  
 3) 输出超过 `maxOutputSize` 后，`getOutput(sessionId).length <= maxOutputSize`，且包含末尾的最新输出片段。  
 4) `getOutput/getStatus` 对不存在 session 抛出 `SessionNotFoundError`，且 `error.code === 'SESSION_NOT_FOUND'`。  
+4.1) 支持按 `offset/limit` 增量读取输出（`readOutput`/`log`），并能在丢弃旧内容时标记 `truncated`。  
 5) `npm test` 全绿。
 
 补充说明：

@@ -55,6 +55,15 @@ export interface ReadOutputResult {
   endOffset: number;
 }
 
+export interface ProcessLogResult {
+  offset: number;
+  nextOffset: number;
+  output: string;
+  truncated: boolean;
+  startOffset: number;
+  endOffset: number;
+}
+
 export type PTYExitEvent = { exitCode: number; signal?: number };
 
 export interface PTYLike {
@@ -349,6 +358,22 @@ export class PTYManager {
       ...read,
       startOffset: session.output.startOffset,
       endOffset: session.output.endOffset
+    };
+  }
+
+  /**
+   * Convenience wrapper to match "process log" shape (offset/limit).
+   * Equivalent to `readOutput`, but returns `output` instead of `data`.
+   */
+  log(sessionId: string, options?: { offset?: number; limit?: number }): ProcessLogResult {
+    const chunk = this.readOutput(sessionId, options);
+    return {
+      offset: chunk.offset,
+      nextOffset: chunk.nextOffset,
+      output: chunk.data,
+      truncated: chunk.truncated,
+      startOffset: chunk.startOffset,
+      endOffset: chunk.endOffset
     };
   }
 

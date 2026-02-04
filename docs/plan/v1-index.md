@@ -34,6 +34,7 @@
 | REQ-003 | v1-m1 / v1-m4 | `npm test`（output 捕获/事件） | `npm test` 输出 |
 | REQ-004 | v1-m1 | `npm test`（SessionNotFound） | `npm test` 输出 |
 | REQ-005 | v1-m1 | `npm test`（buffer cap） | `npm test` 输出 |
+| REQ-005A | v1-m1 | `npm test`（readOutput/log offset） | `npm test` 输出 |
 | REQ-006 | v1-m2 | `npm test`（write/ctrl+c） | `npm test` 输出 |
 | REQ-007 | v1-m1 / v1-m2 | `npm test`（status exitCode/endTime） | `npm test` 输出 |
 | REQ-008 | v1-m2 | `npm test`（kill SIGTERM/SIGINT） | `npm test` 输出 |

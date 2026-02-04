@@ -33,11 +33,11 @@ const timer = setInterval(() => {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const status = manager.getStatus(sessionId);
-    const chunk = manager.readOutput(sessionId, { offset, limit: 1024 });
+    const chunk = manager.log(sessionId, { offset, limit: 1024 });
     if (chunk.truncated) {
       console.log('[log] truncated: jumped offset from', offset, 'to', chunk.offset);
     }
-    if (chunk.data) process.stdout.write(chunk.data);
+    if (chunk.output) process.stdout.write(chunk.output);
     offset = chunk.nextOffset;
 
     if (status.status !== 'running') break;
@@ -47,7 +47,8 @@ const timer = setInterval(() => {
   const final = manager.getStatus(sessionId);
   console.log('\n--- summary ---');
   console.log('status=', final.status, 'exitCode=', final.exitCode);
-  console.log('finalOffsets=', manager.readOutput(sessionId, { offset: 0, limit: 0 }).startOffset, manager.readOutput(sessionId, { offset: 0, limit: 0 }).endOffset);
+  const meta = manager.log(sessionId, { offset: 0, limit: 0 });
+  console.log('finalOffsets=', meta.startOffset, meta.endOffset);
 }
 
 try {
@@ -62,4 +63,3 @@ try {
     process.exitCode = 1;
   }
 }
-

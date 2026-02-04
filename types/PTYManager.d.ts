@@ -41,6 +41,14 @@ export interface ReadOutputResult {
     startOffset: number;
     endOffset: number;
 }
+export interface ProcessLogResult {
+    offset: number;
+    nextOffset: number;
+    output: string;
+    truncated: boolean;
+    startOffset: number;
+    endOffset: number;
+}
 export type PTYExitEvent = {
     exitCode: number;
     signal?: number;
@@ -79,6 +87,14 @@ export declare class PTYManager {
         offset?: number;
         limit?: number;
     }): ReadOutputResult;
+    /**
+     * Convenience wrapper to match "process log" shape (offset/limit).
+     * Equivalent to `readOutput`, but returns `output` instead of `data`.
+     */
+    log(sessionId: string, options?: {
+        offset?: number;
+        limit?: number;
+    }): ProcessLogResult;
     getStatus(sessionId: string): SessionStatus;
     write(sessionId: string, text: string): WriteResult;
     kill(sessionId: string, signal?: 'SIGTERM' | 'SIGKILL' | 'SIGINT'): KillResult;

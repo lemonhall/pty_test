@@ -59,6 +59,20 @@ test('readOutput supports offset/limit', async () => {
   assert.equal(b.data, ' world');
 });
 
+test('log() matches process log shape', async () => {
+  const fake = new FakePty(10);
+  const manager = new PTYManager({
+    ptyProvider: scriptedProvider([() => fake])
+  });
+  const id = manager.spawn('cmd');
+
+  fake.emitData('abc');
+  const chunk = manager.log(id, { offset: 0, limit: 1024 });
+  assert.equal(chunk.output, 'abc');
+  assert.equal(chunk.offset, 0);
+  assert.equal(chunk.nextOffset > chunk.offset, true);
+});
+
 test('readOutput reports truncation when ring buffer drops old bytes', async () => {
   const fake = new FakePty(2);
   const manager = new PTYManager({
@@ -76,4 +90,3 @@ test('readOutput reports truncation when ring buffer drops old bytes', async () 
   assert.ok(chunk.data.length > 0);
   assert.ok(chunk.endOffset >= chunk.nextOffset);
 });
-
