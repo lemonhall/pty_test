@@ -90,3 +90,21 @@ test('readOutput reports truncation when ring buffer drops old bytes', async () 
   assert.ok(chunk.data.length > 0);
   assert.ok(chunk.endOffset >= chunk.nextOffset);
 });
+
+test('readOutput does not stall when startOffset cuts UTF-8 sequence', async () => {
+  const fake = new FakePty(3);
+  const manager = new PTYManager({
+    // Small enough to force trimming mid-character.
+    maxOutputSize: 4,
+    ptyProvider: scriptedProvider([() => fake])
+  });
+  const id = manager.spawn('cmd');
+
+  // "你" is 3 bytes in UTF-8. This will force the buffer to start mid-sequence.
+  fake.emitData('你你'); // 6 bytes => drop 2 bytes => startOffset=2 (likely continuation)
+
+  const first = manager.readOutput(id, { offset: 0, limit: 1024 });
+  assert.equal(first.truncated, true);
+  assert.equal(first.offset, first.startOffset);
+  assert.equal(first.nextOffset, first.endOffset);
+});

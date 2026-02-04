@@ -117,7 +117,11 @@ function sanitizeUtf8Slice(buf: Buffer): { buf: Buffer; bytesConsumed: number } 
   }
 
   const safe = buf.subarray(start, end);
-  return { buf: safe, bytesConsumed: safe.length };
+  // We advance through:
+  // - any leading continuation bytes (dropped to resync), and
+  // - the valid UTF-8 bytes we return.
+  // We do NOT advance through trailing incomplete sequences (end trimmed).
+  return { buf: safe, bytesConsumed: end };
 }
 
 class OutputBuffer {
