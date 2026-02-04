@@ -1,4 +1,6 @@
 import { PTYManager, SpawnError } from '../dist/index.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,6 +28,10 @@ async function waitForExit(manager, sessionId, timeoutMs = 10_000) {
 try {
   const manager = new PTYManager({ maxOutputSize: 1024 * 1024 });
 
+  const examplesDir = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(examplesDir, '..');
+  const targetFile = 'examples/vim-demo.txt';
+
   const sessionId = manager.spawn('vim', {
     args: [
       '--noplugin',
@@ -34,14 +40,17 @@ try {
       '-i',
       'NONE',
       '-n',
-      // 打开仓库里的 README，避免空白界面（也方便看到“确实启动了”）
-      'README.md'
+      // 用一个固定的小文件，避免 cwd/文件名歧义
+      targetFile
     ],
+    cwd: repoRoot,
     cols: 120,
     rows: 40
   });
 
   console.log('spawned vim sessionId=', sessionId);
+  console.log('vim cwd=', repoRoot);
+  console.log('vim file=', targetFile);
 
   // vim 是全屏程序：这里不实时打印 output，避免刷屏；只统计一下数据量。
   let seenBytes = 0;
@@ -79,4 +88,3 @@ try {
     process.exitCode = 1;
   }
 }
-

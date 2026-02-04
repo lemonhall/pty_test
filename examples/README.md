@@ -21,6 +21,6 @@ npm run example:vim
 ```
 
 说明：
+- 该例子固定打开 `examples/vim-demo.txt`（并显式设置 vim 的 `cwd` 为仓库根目录），避免“到底打开了哪个 README”的歧义。
 - 全屏 TUI 程序（vim）输出包含大量 ANSI 控制序列；`getOutput()` 会得到“原始终端输出”，这是正常的。
 - 如遇 `SPAWN_FAILED`（例如 WSL/容器 PTY 权限/挂载问题），需要先修复 PTY 环境或换到本机终端运行。
-
