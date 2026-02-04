@@ -58,10 +58,10 @@
 **验收口径**：对不存在的 `sessionId` 调用 `getOutput` 会抛出带 `code=SESSION_NOT_FOUND` 的错误。
 
 **REQ-005（输出缓冲上限）**：每个 Session 的输出缓冲必须有上限（默认 1MB），超出时滚动丢弃最早内容。  
-**验收口径**：输出超过上限后，缓冲区长度不超过上限，且末尾包含最新输出片段。
+**验收口径**：输出超过上限后，缓冲区 UTF-8 字节数不超过上限（例如 `Buffer.byteLength(getOutput(...), 'utf8') <= maxOutputSize`），且末尾包含最新输出片段。
 
 **REQ-005A（增量日志读取）**：系统必须支持按 `offset/limit` 增量读取输出（类似 `process log`），并在缓冲区已丢弃旧内容时告知截断。  
-**验收口径**：提供 `readOutput(sessionId, { offset, limit })`（或等价 API），返回 `nextOffset` 作为下一次读取游标；当 `offset < startOffset` 时返回 `truncated=true` 且自动将 `offset` 跳至 `startOffset`。
+**验收口径**：提供 `readOutput(sessionId, { offset, limit })`（或等价 API），其中 `offset/limit/nextOffset/startOffset/endOffset` 都以 **字节（byte）** 为单位；返回 `nextOffset` 作为下一次读取游标；当 `offset < startOffset` 时返回 `truncated=true` 且自动将 `offset` 跳至 `startOffset`。
 
 **REQ-006（Write）**：系统必须支持向运行中的 Session 发送文本输入与常用特殊按键序列。  
 **验收口径**：向交互式进程写入文本可触发可观测输出；对已结束 Session 写入返回失败/或抛出可识别错误。
@@ -110,7 +110,8 @@ API 以 `PTYManager` 类为核心，详见 `docs/plan/v1-index.md` 中的版本�
 
 输出读取建议：
 - `getOutput(sessionId)`：一次性拿到当前缓冲区内的全部输出（适合 debug）
-- `readOutput/session log`：按 `offset/limit` 增量读取（更适合作为工具系统的 `process log` 接口）；也可用 `log()` 便捷封装返回 `output` 字段
+- `readOutput/session log`：按 **byte offset/limit** 增量读取（更适合作为工具系统的 `process log` 接口）；也可用 `log()` 便捷封装返回 `output` 字段
+- `ProcessManager.process({ action: 'log', ... })`：按 **line offset/limit** 做切片（更贴近你贴的 `process` tool 行为）
 
 补充说明：
 - 本库的 `sessionId` 默认指 **PTY 会话 ID**（即“过程控制句柄”：log/poll/write/kill）。

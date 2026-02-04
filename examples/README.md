@@ -20,7 +20,8 @@ npm run example:stream
 npm run example:log
 ```
 
-这个例子用 `readOutput({ offset, limit })` 按“游标”增量读取输出，适合做 `process action:log` 那种接口。
+这个例子用 `readOutput({ offset, limit })` 按 **byte offset** 增量读取输出（偏“底层流式”）。
+如果你想要更贴近 SKILL 里 `process action:log` 的 **line offset/limit** 行为，用 `npm run example:process-like`。
 
 ## 3) 用 PTY 启动 Codex 并持续捕获输出（HTML 小游戏）
 
