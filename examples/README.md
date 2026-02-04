@@ -22,6 +22,14 @@ npm run example:log
 
 这个例子用 `readOutput({ offset, limit })` 按“游标”增量读取输出，适合做 `process action:log` 那种接口。
 
+## 3) 用 PTY 启动 Codex 并持续捕获输出（HTML 小游戏）
+
+```bash
+npm run example:codex-game
+```
+
+这个例子会在临时目录创建一个新的 git repo，然后用 `PTYManager` 启动 `codex exec --full-auto` 生成一个 `index.html` 小游戏，并用 `log(offset/limit)` 持续增量打印输出。
+
 ## 2) 启动 vim，然后按键退出（ESC + :q! + Enter）
 
 ```bash

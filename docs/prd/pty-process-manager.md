@@ -109,4 +109,4 @@ API 以 `PTYManager` 类为核心，详见 `docs/plan/v1-index.md` 中的版本�
 
 输出读取建议：
 - `getOutput(sessionId)`：一次性拿到当前缓冲区内的全部输出（适合 debug）
-- `readOutput/session log`：按 `offset/limit` 增量读取（更适合作为工具系统的 `process log` 接口）
+- `readOutput/session log`：按 `offset/limit` 增量读取（更适合作为工具系统的 `process log` 接口）；也可用 `log()` 便捷封装返回 `output` 字段

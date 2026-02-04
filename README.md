@@ -51,3 +51,4 @@ RUN_PTY_INTEGRATION=1 npm test
 - `npm run example:stream`：启动一个 60 秒断断续续输出的进程并捕获输出
 - `npm run example:log`：按 `offset/limit` 增量读取输出（更像 process log）
 - `npm run example:vim`：启动 `vim`，发送 `Esc` + `:q!` + `Enter` 退出，并查看捕获的原始输出
+- `npm run example:codex-game`：用 PTY 启动 `codex exec` 生成一个 `index.html` 小游戏，并持续捕获输出
